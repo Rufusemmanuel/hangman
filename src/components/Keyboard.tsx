@@ -11,6 +11,8 @@ type KeyboardProps = {
   locked?: boolean;
   showHint?: boolean;
   variant?: 'default' | 'mobile';
+  hideHeader?: boolean;
+  className?: string;
 };
 
 const Keyboard: FC<KeyboardProps> = ({
@@ -22,23 +24,27 @@ const Keyboard: FC<KeyboardProps> = ({
   locked,
   showHint,
   variant = 'default',
+  hideHeader = false,
+  className = '',
 }) => {
   const gridStateClass = locked ? 'opacity-50 cursor-not-allowed' : '';
   const isMobile = variant === 'mobile';
   const containerClass = isMobile
-    ? `relative flex h-full flex-col rounded-t-3xl border border-white/15 bg-[#0b061c]/95 p-3 pb-4 shadow-[0_-10px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+    ? `relative flex h-full flex-col rounded-2xl border border-white/15 bg-[#0b061c]/95 p-2.5 pb-3 shadow-[0_-10px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
         locked ? 'cursor-not-allowed' : ''
       }`
     : `card relative overflow-hidden ${locked ? 'cursor-not-allowed' : ''}`;
   const keycapClass = isMobile ? 'mobile-keycap' : 'keycap';
-  const gridCols = isMobile ? 'grid-cols-7 gap-2 flex-1' : 'grid-cols-7 gap-2 md:grid-cols-9';
+  const gridCols = isMobile ? 'grid-cols-9 gap-1.5 auto-rows-[minmax(44px,1fr)]' : 'grid-cols-7 gap-2 md:grid-cols-9';
 
   return (
-    <div className={containerClass}>
-      <div className={`mb-3 flex items-center justify-between text-sm text-white/70 ${isMobile ? 'px-1' : ''}`}>
-        <span className="text-xs uppercase tracking-[0.18em] text-white/60 md:text-sm">Keyboard</span>
-        <span className="text-[11px] text-white/50 md:text-sm">Tap keys or use your keyboard</span>
-      </div>
+    <div className={`${containerClass} ${className}`}>
+      {!hideHeader && (
+        <div className={`mb-3 flex items-center justify-between text-sm text-white/70 ${isMobile ? 'px-1' : ''}`}>
+          <span className="text-xs uppercase tracking-[0.18em] text-white/60 md:text-sm">Keyboard</span>
+          <span className="text-[11px] text-white/50 md:text-sm">Tap keys or use your keyboard</span>
+        </div>
+      )}
       <div className={`grid ${gridCols} ${gridStateClass}`}>
         {LETTERS.map((letter) => {
           const isUsed = usedLetters.has(letter);

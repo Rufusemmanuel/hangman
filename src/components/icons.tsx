@@ -34,3 +34,15 @@ export const LightningIcon = (props: SVGProps<SVGSVGElement>) => (
     <path d="M13.5 2 4 14h7l-1.5 8L20 10h-7l.5-8Z" />
   </svg>
 );
+
+export const ChevronDownIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+export const ChevronUpIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <path d="m18 15-6-6-6 6" />
+  </svg>
+);

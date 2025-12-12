@@ -1,9 +1,9 @@
 import type { FC } from 'react';
 import type { Difficulty } from '../data/words';
 import HangmanSVG from './HangmanSVG';
-import Keyboard from './Keyboard';
 import Settings from './Settings';
 import WalletPanel from '../wallet/WalletPanel';
+import KeyboardTray from './KeyboardTray';
 
 type MobileGameLayoutProps = {
   displayWord: string[];
@@ -37,7 +37,8 @@ type MobileGameLayoutProps = {
   onCloseMenu: () => void;
 };
 
-const KeyboardHeight = '50vh';
+const KEYBOARD_COLLAPSED_HEIGHT = '26vh';
+const KEYBOARD_EXPANDED_HEIGHT = '44vh';
 
 const MobileGameLayout: FC<MobileGameLayoutProps> = ({
   displayWord,
@@ -84,48 +85,49 @@ const MobileGameLayout: FC<MobileGameLayoutProps> = ({
   return (
     <div className="md:hidden">
       <div
-        className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-4"
-        style={{ paddingBottom: KeyboardHeight }}
+        className="mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col gap-3 px-4 pt-3"
+        style={{ paddingBottom: KEYBOARD_COLLAPSED_HEIGHT }}
       >
-        <section className="space-y-2">
-          <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3" style={{ height: '20vh' }}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Neon Hangman</p>
-                <h1 className="text-xl font-semibold leading-tight text-white">Guess the secret word</h1>
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/70">
-                  <span className="rounded-full bg-white/10 px-2 py-1 uppercase tracking-[0.16em] text-fuchsia-100">
-                    {difficulty}
-                  </span>
-                  <span className="h-[6px] w-[6px] rounded-full bg-white/30" />
-                  <span>Lives {lives}/{maxLives}</span>
-                  <span className="h-[6px] w-[6px] rounded-full bg-white/30" />
-                  <span className="font-semibold text-fuchsia-200">{points} pts</span>
-                  {lastAward !== null && <span className="text-emerald-200">+{lastAward}</span>}
-                </div>
-                {newGameError && <p className="text-[11px] text-rose-200/90">{newGameError}</p>}
-              </div>
-              <div className="flex items-start gap-2">
-                <button
-                  type="button"
-                  className="btn px-3 py-2 text-xs"
-                  onClick={onOpenMenu}
-                  aria-label="Open menu"
-                >
-                  Menu
+        <header className="flex items-center justify-between gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Neon Hangman</p>
+            <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-fuchsia-100">
+              {difficulty}
+            </span>
+            <span className="text-[11px] text-white/70">Lives {lives}/{maxLives}</span>
+            <span className="text-[11px] text-fuchsia-200 font-semibold">{points} pts</span>
+            {lastAward !== null && <span className="text-[11px] text-emerald-200">+{lastAward}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn px-3 py-1.5 text-xs"
+              onClick={onOpenMenu}
+              aria-label="Open menu"
+            >
+              Menu
+            </button>
+            <button
+              className="btn btn-primary px-3 py-1.5 text-xs font-semibold"
+              onClick={onNewGame}
+              aria-label="Start a new game"
+              disabled={newGameDisabled}
+            >
+              {newGameLabel}
+            </button>
+          </div>
+        </header>
+        {newGameError && <p className="text-[11px] text-rose-200/90">{newGameError}</p>}
+
+        <section className="flex flex-1 flex-col gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-[0.16em] text-white/60">Hidden word</span>
+                <button className="btn px-3 py-1.5 text-xs" onClick={onToggleHint} aria-label={hintRevealed ? 'Hide hint' : 'Reveal hint'}>
+                  {hintRevealed ? 'Hide hint' : 'Reveal hint'}
                 </button>
-                <button
-                  className="btn btn-primary px-3 py-2 text-xs font-semibold"
-                  onClick={onNewGame}
-                  aria-label="Start a new game"
-                  disabled={newGameDisabled}
-                >
-                  {newGameLabel}
-                </button>
               </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-[0.16em] text-white/60">Hidden word</div>
               <div className={`rounded-full border px-2 py-1 text-[11px] uppercase tracking-[0.18em] ${statusTone}`}>
                 {status === 'won' ? 'You win' : status === 'lost' ? 'Game over' : lastResult || 'Ready'}
               </div>
@@ -144,57 +146,42 @@ const MobileGameLayout: FC<MobileGameLayoutProps> = ({
                 </span>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-white/10 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-fuchsia-100">
-                Hint
-              </div>
-              <div className="flex-1 overflow-hidden text-ellipsis text-sm text-white/70">
-                {hintRevealed ? hint : 'Tap to reveal'}
-              </div>
-              <button className="btn px-3 py-1.5 text-xs" onClick={onToggleHint} aria-label={hintRevealed ? 'Hide hint' : 'Reveal hint'}>
-                {hintRevealed ? 'Hide' : 'Reveal'}
-              </button>
+            <div className="mt-1 flex items-center gap-2 text-xs text-white/70">
+              <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-fuchsia-100">Hint</span>
+              <span className="truncate text-sm text-white/70">{hintRevealed ? hint : 'Tap reveal to view hint'}</span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-white/60">
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Lives {lives}/{maxLives}</span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Correct {correctLetters.length}</span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1">Wrong {wrongLetters.length}</span>
             </div>
           </div>
 
-          <div className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-3" style={{ height: '30vh' }}>
-            <div className="mb-2 flex items-center justify-between text-xs text-white/70">
+          <div className="flex flex-1 flex-col rounded-2xl border border-white/10 bg-white/5 p-2">
+            <div className="mb-1 flex items-center justify-between text-xs text-white/70">
               <span>Hangman</span>
               <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-white/70">
                 {mistakes}/{maxLives} mistakes
               </span>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-h-[45vh]">
               <HangmanSVG mistakes={mistakes} maxMistakes={maxLives} status={status} compact className="h-full" />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs text-white/70">
-              <span>Wrong</span>
-              <div className="flex flex-wrap gap-1 text-[11px]">
-                {wrongLetters.length === 0 && <span className="text-white/40">None yet</span>}
-                {wrongLetters.map((l) => (
-                  <span key={l} className="rounded-lg bg-fuchsia-500/10 px-2 py-1 text-fuchsia-200">{l}</span>
-                ))}
-              </div>
             </div>
           </div>
         </section>
       </div>
 
-      <div
-        className="fixed bottom-0 left-0 right-0 z-20"
-        style={{ height: KeyboardHeight, maxHeight: '480px', paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <Keyboard
-          variant="mobile"
-          onGuess={onGuess}
-          usedLetters={usedLetters}
-          correctLetters={new Set(correctLetters)}
-          wrongLetters={new Set(wrongLetters)}
-          disabled={keyboardDisabled}
-          locked={locked}
-          showHint={showHint}
-        />
-      </div>
+      <KeyboardTray
+        collapsedHeight={KEYBOARD_COLLAPSED_HEIGHT}
+        expandedHeight={KEYBOARD_EXPANDED_HEIGHT}
+        onGuess={onGuess}
+        usedLetters={usedLetters}
+        correctLetters={new Set(correctLetters)}
+        wrongLetters={new Set(wrongLetters)}
+        disabled={keyboardDisabled}
+        locked={locked}
+        showHint={showHint}
+      />
 
       {menuOpen && (
         <div className="fixed inset-0 z-30 flex items-end justify-center">
