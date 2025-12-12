@@ -17,22 +17,18 @@
       "https://hangman-two-eta.vercel.app/hangmansplash.png"
     ],
     "primaryCategory": "games",
-    "tags": ["hangman", "game", "puzzle", "base", "wallet"],
+    "tags": [
+      "hangman",
+      "game",
+      "puzzle",
+      "base",
+      "wallet"
+    ],
     "heroImageUrl": "https://hangman-two-eta.vercel.app/hangmansplash.png",
     "tagline": "Neon puzzles. Beat the rope.",
     "ogTitle": "Neon Hangman",
     "ogDescription": "Play neon Hangman with wallet-powered rewards on Base.",
     "ogImageUrl": "https://hangman-two-eta.vercel.app/hangmansplash.png",
     "castShareUrl": "https://hangman-two-eta.vercel.app/"
-  },
-  "frame": {
-    "version": "1",
-    "name": "Neon Hangman",
-    "iconUrl": "https://hangman-two-eta.vercel.app/hangmanlogo.gif",
-    "homeUrl": "https://hangman-two-eta.vercel.app/",
-    "imageUrl": "https://hangman-two-eta.vercel.app/hangmansplash.png",
-    "buttonTitle": "Play Neon Hangman",
-    "splashImageUrl": "https://hangman-two-eta.vercel.app/hangmansplash.png",
-    "splashBackgroundColor": "#0b031a"
   }
 }
