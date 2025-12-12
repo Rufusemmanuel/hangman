@@ -7,11 +7,11 @@
   "frame": {
     "version": "1",
     "name": "Neon Hangman",
-    "iconUrl": "https://hangman-two-eta.vercel.app/favicon.ico",
+    "iconUrl": "https://hangman-two-eta.vercel.app/hangmanlogo.gif",
     "homeUrl": "https://hangman-two-eta.vercel.app/",
-    "imageUrl": "https://hangman-two-eta.vercel.app/favicon.ico",
+    "imageUrl": "https://hangman-two-eta.vercel.app/hangmansplash.png",
     "buttonTitle": "Play Neon Hangman",
-    "splashImageUrl": "https://hangman-two-eta.vercel.app/favicon.ico",
+    "splashImageUrl": "https://hangman-two-eta.vercel.app/hangmansplash.png",
     "splashBackgroundColor": "#0b031a"
   }
 }
