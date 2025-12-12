@@ -13,6 +13,7 @@ import Header from './components/Header';
 import Keyboard from './components/Keyboard';
 import ResultModal from './components/ResultModal';
 import Settings from './components/Settings';
+import MobileGameLayout from './components/MobileGameLayout';
 import { PAY_TO_PLAY_ABI, PAY_TO_PLAY_ADDRESS } from './config/contract';
 import { Difficulty, WordEntry, wordBank } from './data/words';
 import { useSound } from './hooks/useSound';
@@ -131,6 +132,8 @@ function App() {
   const [newGameLoading, setNewGameLoading] = useState(false);
   const [newGameError, setNewGameError] = useState<string | null>(null);
   const [clearingError, setClearingError] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
 
   const maxLives = livesByDifficulty[state.difficulty];
   const wrongLetters = Array.from(state.guessed).filter((l) => !state.wordEntry.word.includes(l));
@@ -321,6 +324,19 @@ function App() {
   }, [state.status, state.roundDifficulty]);
 
   useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const update = (event: MediaQueryListEvent | MediaQueryList) => setIsMobileView(event.matches);
+    update(media);
+    const listener = (event: MediaQueryListEvent) => update(event);
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', listener);
+      return () => media.removeEventListener('change', listener);
+    }
+    media.addListener(listener);
+    return () => media.removeListener(listener);
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (loseTimer.current) {
         window.clearTimeout(loseTimer.current);
@@ -350,82 +366,118 @@ function App() {
   }, [state.status, state.guessed, result, isRevealingResult, address, chainId, handlePlay, handleGuess, isUnlocked]);
 
   const newGameLabel = (newGameLoading || writingTx) ? 'Confirming...' : 'New Game';
+  const keyboardDisabled = !isUnlocked || state.status !== 'playing' || result !== null || isRevealingResult;
+  const locked = !isUnlocked;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden text-white bg-[linear-gradient(135deg,#1b043e_0%,#240654_45%,#3a0b7a_100%)]">
-      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-12 pt-8 md:px-8 lg:pt-12">
-        <Header
+      {isMobileView ? (
+        <MobileGameLayout
+          displayWord={displayWord}
+          hint={state.wordEntry.hint}
+          hintRevealed={hintRevealed}
+          onToggleHint={() => setHintRevealed((v) => !v)}
+          lastResult={state.lastResult}
+          wrongLetters={wrongLetters}
+          correctLetters={correctLetters}
+          lives={state.lives}
+          maxLives={maxLives}
+          status={state.status}
+          onGuess={handleGuess}
+          usedLetters={state.guessed}
+          locked={locked}
+          keyboardDisabled={keyboardDisabled}
+          showHint={isConnected && !isUnlocked}
+          mistakes={mistakes}
+          difficulty={state.difficulty}
+          points={points}
+          lastAward={lastAward}
           onNewGame={() => handlePlay()}
           newGameLabel={newGameLabel}
           newGameDisabled={newGameLoading || checkingEntered || writingTx}
           newGameError={newGameError}
-          lives={state.lives}
-          maxLives={maxLives}
-          difficulty={state.difficulty}
-          points={points}
-          lastAward={lastAward}
+          soundEnabled={soundEnabled}
+          onToggleSound={() => setSoundEnabled((v) => !v)}
+          onDifficultyChange={(d) => handlePlay(d)}
+          menuOpen={mobileMenuOpen}
+          onOpenMenu={() => setMobileMenuOpen(true)}
+          onCloseMenu={() => setMobileMenuOpen(false)}
         />
+      ) : (
+        <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-12 pt-8 md:px-8 lg:pt-12">
+          <Header
+            onNewGame={() => handlePlay()}
+            newGameLabel={newGameLabel}
+            newGameDisabled={newGameLoading || checkingEntered || writingTx}
+            newGameError={newGameError}
+            lives={state.lives}
+            maxLives={maxLives}
+            difficulty={state.difficulty}
+            points={points}
+            lastAward={lastAward}
+          />
 
-        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <section className="card space-y-4">
-            <GameBoard
-              displayWord={displayWord}
-              hint={state.wordEntry.hint}
-              hintRevealed={hintRevealed}
-              onToggleHint={() => setHintRevealed((v) => !v)}
-              lastResult={state.lastResult}
-              wrongLetters={wrongLetters}
-              correctLetters={correctLetters}
-              lives={state.lives}
-              maxLives={maxLives}
-              status={state.status}
-            />
-            <Keyboard
-              onGuess={handleGuess}
-              usedLetters={state.guessed}
-              correctLetters={new Set(correctLetters)}
-              wrongLetters={new Set(wrongLetters)}
-              disabled={!isUnlocked || state.status !== 'playing' || result !== null || isRevealingResult}
-              locked={!isUnlocked}
-              showHint={isConnected && !isUnlocked}
-            />
-            <WalletPanel />
-          </section>
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            <section className="card space-y-4">
+              <GameBoard
+                displayWord={displayWord}
+                hint={state.wordEntry.hint}
+                hintRevealed={hintRevealed}
+                onToggleHint={() => setHintRevealed((v) => !v)}
+                lastResult={state.lastResult}
+                wrongLetters={wrongLetters}
+                correctLetters={correctLetters}
+                lives={state.lives}
+                maxLives={maxLives}
+                status={state.status}
+              />
+              <Keyboard
+                onGuess={handleGuess}
+                usedLetters={state.guessed}
+                correctLetters={new Set(correctLetters)}
+                wrongLetters={new Set(wrongLetters)}
+                disabled={keyboardDisabled}
+                locked={locked}
+                showHint={isConnected && !isUnlocked}
+              />
+              <WalletPanel />
+            </section>
 
-          <section className="space-y-4">
-            <div className="card flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/70">Hangman</p>
-                  <p className="text-xl font-semibold">{state.lives} / {maxLives} lives</p>
+            <section className="space-y-4">
+              <div className="card flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-white/70">Hangman</p>
+                    <p className="text-xl font-semibold">{state.lives} / {maxLives} lives</p>
+                  </div>
+                  <div className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-fuchsia-200">
+                    {state.difficulty}
+                  </div>
                 </div>
-                <div className="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-fuchsia-200">
-                  {state.difficulty}
+                <HangmanSVG mistakes={mistakes} maxMistakes={maxLives} status={state.status} />
+                <div className="flex items-center justify-between text-sm text-white/70">
+                  <span>Wrong letters</span>
+                  <div className="flex flex-wrap gap-2">
+                    {wrongLetters.length === 0 && <span className="text-white/40">None yet</span>}
+                    {wrongLetters.map((l) => (
+                      <span key={l} className="rounded-lg bg-fuchsia-500/10 px-2 py-1 text-fuchsia-200">{l}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <HangmanSVG mistakes={mistakes} maxMistakes={maxLives} status={state.status} />
-              <div className="flex items-center justify-between text-sm text-white/70">
-                <span>Wrong letters</span>
-                <div className="flex flex-wrap gap-2">
-                  {wrongLetters.length === 0 && <span className="text-white/40">None yet</span>}
-                  {wrongLetters.map((l) => (
-                    <span key={l} className="rounded-lg bg-fuchsia-500/10 px-2 py-1 text-fuchsia-200">{l}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
 
-            <Settings
-              difficulty={state.difficulty}
-              onDifficultyChange={(d) => handlePlay(d)}
-              soundEnabled={soundEnabled}
-              onToggleSound={() => setSoundEnabled((v) => !v)}
-              lives={state.lives}
-              maxLives={maxLives}
-            />
-          </section>
+              <Settings
+                difficulty={state.difficulty}
+                onDifficultyChange={(d) => handlePlay(d)}
+                soundEnabled={soundEnabled}
+                onToggleSound={() => setSoundEnabled((v) => !v)}
+                lives={state.lives}
+                maxLives={maxLives}
+              />
+            </section>
+          </div>
         </div>
-      </div>
+      )}
 
       <ResultModal
         open={showResultModal}

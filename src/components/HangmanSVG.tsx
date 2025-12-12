@@ -4,9 +4,11 @@ type HangmanSVGProps = {
   mistakes: number;
   maxMistakes: number;
   status: 'playing' | 'won' | 'lost';
+  compact?: boolean;
+  className?: string;
 };
 
-const HangmanSVG: FC<HangmanSVGProps> = ({ mistakes, maxMistakes, status }) => {
+const HangmanSVG: FC<HangmanSVGProps> = ({ mistakes, maxMistakes, status, compact = false, className = '' }) => {
   const beamY = 40;
   const headCx = 170;
   const headCy = 85;
@@ -49,10 +51,17 @@ const HangmanSVG: FC<HangmanSVGProps> = ({ mistakes, maxMistakes, status }) => {
 
   const visibleCount = Math.min(mistakes, parts.length);
   const accent = status === 'won' ? '#34d399' : status === 'lost' ? '#fb7185' : '#a855f7';
+  const containerClass = compact
+    ? 'relative h-full overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 p-2'
+    : 'relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 p-4';
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 p-4">
-      <svg viewBox="0 0 240 260" className="w-full drop-shadow-[0_10px_40px_rgba(124,96,255,0.35)]">
+    <div className={`${containerClass} ${className}`}>
+      <svg
+        viewBox="0 0 240 260"
+        className="h-full w-full drop-shadow-[0_10px_40px_rgba(124,96,255,0.35)]"
+        preserveAspectRatio="xMidYMid meet"
+      >
         <defs>
           <linearGradient id="hangmanStroke" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop stopColor="#a855f7" offset="0%" />

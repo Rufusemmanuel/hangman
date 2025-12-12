@@ -10,6 +10,7 @@ type KeyboardProps = {
   disabled?: boolean;
   locked?: boolean;
   showHint?: boolean;
+  variant?: 'default' | 'mobile';
 };
 
 const Keyboard: FC<KeyboardProps> = ({
@@ -20,16 +21,25 @@ const Keyboard: FC<KeyboardProps> = ({
   disabled,
   locked,
   showHint,
+  variant = 'default',
 }) => {
   const gridStateClass = locked ? 'opacity-50 cursor-not-allowed' : '';
+  const isMobile = variant === 'mobile';
+  const containerClass = isMobile
+    ? `relative flex h-full flex-col rounded-t-3xl border border-white/15 bg-[#0b061c]/95 p-3 pb-4 shadow-[0_-10px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+        locked ? 'cursor-not-allowed' : ''
+      }`
+    : `card relative overflow-hidden ${locked ? 'cursor-not-allowed' : ''}`;
+  const keycapClass = isMobile ? 'mobile-keycap' : 'keycap';
+  const gridCols = isMobile ? 'grid-cols-7 gap-2 flex-1' : 'grid-cols-7 gap-2 md:grid-cols-9';
 
   return (
-    <div className={`card relative overflow-hidden ${locked ? 'cursor-not-allowed' : ''}`}>
-      <div className="mb-3 flex items-center justify-between text-sm text-white/70">
-        <span>Keyboard</span>
-        <span className="text-white/50">Tap keys or use your keyboard</span>
+    <div className={containerClass}>
+      <div className={`mb-3 flex items-center justify-between text-sm text-white/70 ${isMobile ? 'px-1' : ''}`}>
+        <span className="text-xs uppercase tracking-[0.18em] text-white/60 md:text-sm">Keyboard</span>
+        <span className="text-[11px] text-white/50 md:text-sm">Tap keys or use your keyboard</span>
       </div>
-      <div className={`grid grid-cols-7 gap-2 md:grid-cols-9 ${gridStateClass}`}>
+      <div className={`grid ${gridCols} ${gridStateClass}`}>
         {LETTERS.map((letter) => {
           const isUsed = usedLetters.has(letter);
           const stateClass = correctLetters.has(letter)
@@ -40,7 +50,7 @@ const Keyboard: FC<KeyboardProps> = ({
           return (
             <button
               key={letter}
-              className={`keycap focus-ring ${stateClass}`}
+              className={`${keycapClass} focus-ring ${stateClass}`}
               onClick={() => onGuess(letter)}
               disabled={disabled || isUsed || locked}
               aria-label={`Letter ${letter}`}

@@ -69,6 +69,12 @@ body {
   @apply glass text-sm md:text-base font-semibold uppercase px-3 py-2 md:px-3.5 md:py-2.5 rounded-xl border border-white/10 transition-all duration-150 ease-out;
 }
 
+.mobile-keycap {
+  @apply glass text-sm font-semibold uppercase px-2.5 py-2 rounded-xl border border-white/10 transition-all duration-150 ease-out;
+  min-height: 44px;
+  min-width: 36px;
+}
+
 .keycap:hover {
   transform: translateY(-1px) scale(1.01);
   box-shadow: 0 8px 25px rgba(124, 96, 255, 0.35);
