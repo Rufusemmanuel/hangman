@@ -1,0 +1,17 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjY4MzI2NywidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDdjY0RGODAwMDNCZDIyNjU2REY0Q2U3ODRCNDc1OEZlMjRmNDA4OUEifQ",
+    "payload": "eyJkb21haW4iOiJoYW5nbWFuLXR3by1ldGEudmVyY2VsLmFwcCJ9",
+    "signature": "CXZDAyEw3DgTWb+aoPZY0BIYzE3nu00X4nffgg1rx6x6dKwjRk+tyb3/YLeFNWVvi4IbiabigO4NVsIenEjbBBs="
+  },
+  "frame": {
+    "version": "1",
+    "name": "Neon Hangman",
+    "iconUrl": "https://hangman-two-eta.vercel.app/favicon.ico",
+    "homeUrl": "https://hangman-two-eta.vercel.app/",
+    "imageUrl": "https://hangman-two-eta.vercel.app/favicon.ico",
+    "buttonTitle": "Play Neon Hangman",
+    "splashImageUrl": "https://hangman-two-eta.vercel.app/favicon.ico",
+    "splashBackgroundColor": "#0b031a"
+  }
+}
