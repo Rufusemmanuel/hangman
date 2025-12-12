@@ -7,6 +7,7 @@ import {
   useSwitchChain,
   useWriteContract,
 } from 'wagmi';
+import { sdk } from '@farcaster/miniapp-sdk';
 import GameBoard from './components/GameBoard';
 import HangmanSVG from './components/HangmanSVG';
 import Header from './components/Header';
@@ -134,6 +135,11 @@ function App() {
   const [clearingError, setClearingError] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
+
+  useEffect(() => {
+    // Signal readiness to the Farcaster Mini App host so the splash can dismiss.
+    sdk.actions?.ready().catch(() => undefined);
+  }, []);
 
   const maxLives = livesByDifficulty[state.difficulty];
   const wrongLetters = Array.from(state.guessed).filter((l) => !state.wordEntry.word.includes(l));
