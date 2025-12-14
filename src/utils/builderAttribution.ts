@@ -3,6 +3,10 @@ import { Attribution } from "ox/erc8021";
 
 const DEFAULT_BUILDER_CODE = "bc_hc57dxi9";
 
+type Eip1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
 function getBuilderCode() {
   const code = import.meta.env.VITE_BASE_BUILDER_CODE;
   if (typeof code === "string" && code.trim().length > 0) {
@@ -34,7 +38,7 @@ export function appendDataSuffix(data: `0x${string}`, suffix: `0x${string}`): `0
 export async function walletSupportsDataSuffix(connector?: Connector, chainId: number = 8453) {
   try {
     if (!connector?.getProvider) return false;
-    const provider = await connector.getProvider();
+    const provider = (await connector.getProvider()) as Partial<Eip1193Provider>;
     if (!provider?.request) return false;
     const chainHex = `0x${chainId.toString(16)}`;
 
