@@ -33,6 +33,10 @@ const BASE_CHAIN_ID = BASE_CHAIN.id;
 
 type GameStatus = 'playing' | 'won' | 'lost';
 
+type Eip1193Provider = {
+  request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
+};
+
 type GameState = {
   wordEntry: WordEntry;
   guessed: Set<string>;
@@ -333,7 +337,7 @@ function App() {
           if (!connector?.getProvider) {
             throw new Error('Wallet not ready');
           }
-          const provider = await connector.getProvider();
+          const provider = (await connector.getProvider()) as Eip1193Provider;
           const client = createWalletClient({
             chain: viemBase,
             transport: custom(provider),
@@ -383,7 +387,7 @@ function App() {
         if (!connector?.getProvider) {
           throw new Error('Wallet not ready');
         }
-        const provider = await connector.getProvider();
+        const provider = (await connector.getProvider()) as Eip1193Provider;
         const client = createWalletClient({
           chain: viemBase,
           transport: custom(provider),
