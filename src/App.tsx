@@ -21,7 +21,11 @@ import { PAY_TO_PLAY_ABI, PAY_TO_PLAY_ADDRESS } from './config/contract';
 import { Difficulty, WordEntry, wordBank } from './data/words';
 import { useSound } from './hooks/useSound';
 import WalletPanel from './wallet/WalletPanel';
-import { getBuilderCapabilities } from './utils/builderAttribution';
+import {
+  appendDataSuffix,
+  getBuilderDataSuffixHex,
+  walletSupportsDataSuffix,
+} from './utils/builderAttribution';
 import { config } from './wagmi';
 
 const BASE_CHAIN_ID = 8453;
@@ -154,12 +158,26 @@ function App() {
   const [clearingError, setClearingError] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
-  const builderCapabilities = useMemo(() => getBuilderCapabilities(), []);
+  const builderDataSuffixHex = useMemo(() => getBuilderDataSuffixHex(), []);
+  const [dataSuffixSupported, setDataSuffixSupported] = useState(false);
 
   useEffect(() => {
     // Signal readiness to the Farcaster Mini App host so the splash can dismiss.
     sdk.actions?.ready().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supported = await walletSupportsDataSuffix(connector, BASE_CHAIN_ID);
+      if (!cancelled) {
+        setDataSuffixSupported(supported);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [connector]);
 
   const maxLives = livesByDifficulty[state.difficulty];
   const wrongLetters = Array.from(state.guessed).filter((l) => !state.wordEntry.word.includes(l));
@@ -236,19 +254,26 @@ function App() {
       }
 
       if (!hasEntered) {
+        const enterData = encodeFunctionData({
+          abi: PAY_TO_PLAY_ABI,
+          functionName: 'enter',
+        });
+        const enterCallData = dataSuffixSupported
+          ? enterData
+          : appendDataSuffix(enterData, builderDataSuffixHex);
+        console.log({ supportsSuffix: dataSuffixSupported, suffixHex: builderDataSuffixHex });
         const enterCall = await sendCallsAsync({
           calls: [
             {
               to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-              data: encodeFunctionData({
-                abi: PAY_TO_PLAY_ABI,
-                functionName: 'enter',
-              }),
+              data: enterCallData,
               value: entryFeeWei,
             },
           ],
           chainId: BASE_CHAIN_ID,
-          capabilities: builderCapabilities,
+          capabilities: dataSuffixSupported
+            ? { dataSuffix: { value: builderDataSuffixHex } }
+            : undefined,
         });
         if (!publicClient) {
           throw new Error('Missing Base client');
@@ -259,18 +284,23 @@ function App() {
         return;
       }
 
+      const pingData = encodeFunctionData({
+        abi: PAY_TO_PLAY_ABI,
+        functionName: 'ping',
+      });
+      const pingCallData = dataSuffixSupported ? pingData : appendDataSuffix(pingData, builderDataSuffixHex);
+      console.log({ supportsSuffix: dataSuffixSupported, suffixHex: builderDataSuffixHex });
       const pingCall = await sendCallsAsync({
         calls: [
           {
             to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-            data: encodeFunctionData({
-              abi: PAY_TO_PLAY_ABI,
-              functionName: 'ping',
-            }),
+            data: pingCallData,
           },
         ],
         chainId: BASE_CHAIN_ID,
-        capabilities: builderCapabilities,
+        capabilities: dataSuffixSupported
+          ? { dataSuffix: { value: builderDataSuffixHex } }
+          : undefined,
       });
       if (!publicClient) {
         throw new Error('Missing Base client');
