@@ -26,9 +26,9 @@ import {
   getBuilderDataSuffixHex,
   walletSupportsDataSuffix,
 } from './utils/builderAttribution';
-import { config } from './wagmi';
+import { BASE_CHAIN, config } from './wagmi';
 
-const BASE_CHAIN_ID = 8453;
+const BASE_CHAIN_ID = BASE_CHAIN.id;
 
 type GameStatus = 'playing' | 'won' | 'lost';
 
@@ -271,6 +271,7 @@ function App() {
             },
           ],
           chainId: BASE_CHAIN_ID,
+          account: address,
           capabilities: dataSuffixSupported
             ? { dataSuffix: { value: builderDataSuffixHex } }
             : undefined,
@@ -298,6 +299,7 @@ function App() {
           },
         ],
         chainId: BASE_CHAIN_ID,
+        account: address,
         capabilities: dataSuffixSupported
           ? { dataSuffix: { value: builderDataSuffixHex } }
           : undefined,
