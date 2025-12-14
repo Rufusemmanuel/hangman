@@ -5,8 +5,10 @@ import {
   usePublicClient,
   useReadContract,
   useSwitchChain,
-  useWriteContract,
 } from 'wagmi';
+import { useSendCalls } from 'wagmi/experimental';
+import { encodeFunctionData } from 'viem';
+import { waitForCallsStatus } from '@wagmi/core';
 import { sdk } from '@farcaster/miniapp-sdk';
 import GameBoard from './components/GameBoard';
 import HangmanSVG from './components/HangmanSVG';
@@ -19,6 +21,8 @@ import { PAY_TO_PLAY_ABI, PAY_TO_PLAY_ADDRESS } from './config/contract';
 import { Difficulty, WordEntry, wordBank } from './data/words';
 import { useSound } from './hooks/useSound';
 import WalletPanel from './wallet/WalletPanel';
+import { getBuilderCapabilities } from './utils/builderAttribution';
+import { config } from './wagmi';
 
 const BASE_CHAIN_ID = 8453;
 
@@ -116,7 +120,7 @@ function App() {
   const awardTimer = useRef<number | null>(null);
   const roundAwarded = useRef(false);
   const { play } = useSound(soundEnabled);
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const publicClient = usePublicClient({ chainId: BASE_CHAIN_ID });
@@ -128,13 +132,29 @@ function App() {
     chainId: BASE_CHAIN_ID,
     query: { enabled: Boolean(address) },
   });
+  const { data: entryFeeWei } = useReadContract({
+    address: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+    abi: [
+      ...PAY_TO_PLAY_ABI,
+      {
+        type: 'function',
+        name: 'entryFeeWei',
+        stateMutability: 'view',
+        inputs: [],
+        outputs: [{ name: '', type: 'uint256' }],
+      },
+    ] as const,
+    functionName: 'entryFeeWei',
+    chainId: BASE_CHAIN_ID,
+  });
   const isUnlocked = Boolean(hasEnteredData);
-  const { writeContractAsync, isPending: writingTx } = useWriteContract();
+  const { sendCallsAsync, isPending: sendingCalls } = useSendCalls();
   const [newGameLoading, setNewGameLoading] = useState(false);
   const [newGameError, setNewGameError] = useState<string | null>(null);
   const [clearingError, setClearingError] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
+  const builderCapabilities = useMemo(() => getBuilderCapabilities(), []);
 
   useEffect(() => {
     // Signal readiness to the Farcaster Mini App host so the splash can dismiss.
@@ -169,8 +189,20 @@ function App() {
     roundAwarded.current = false;
   };
 
+  const waitForCallBundle = async (callId: string) => {
+    const status = await waitForCallsStatus(config, {
+      id: callId,
+      connector: connector ?? undefined,
+      throwOnFailure: true,
+    });
+    const receiptHash = status.receipts?.[0]?.transactionHash;
+    if (receiptHash && publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: receiptHash });
+    }
+  };
+
   const handlePlay = async (newDifficulty?: Difficulty) => {
-    if (newGameLoading || writingTx) return;
+    if (newGameLoading || sendingCalls) return;
     setNewGameError(null);
     setNewGameLoading(true);
     if (!isConnected || !address) {
@@ -188,6 +220,11 @@ function App() {
       }
     }
     try {
+      if (entryFeeWei === undefined) {
+        setNewGameError('Entry fee not loaded yet');
+        setNewGameLoading(false);
+        return;
+      }
       let hasEntered = Boolean(hasEnteredData);
       try {
         const refreshed = await refetchHasEntered();
@@ -199,32 +236,46 @@ function App() {
       }
 
       if (!hasEntered) {
-        const enterHash = await writeContractAsync({
-          address: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-          abi: PAY_TO_PLAY_ABI,
-          functionName: 'enter',
-          value: BigInt(0),
+        const enterCall = await sendCallsAsync({
+          calls: [
+            {
+              to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+              data: encodeFunctionData({
+                abi: PAY_TO_PLAY_ABI,
+                functionName: 'enter',
+              }),
+              value: entryFeeWei,
+            },
+          ],
           chainId: BASE_CHAIN_ID,
+          capabilities: builderCapabilities,
         });
         if (!publicClient) {
           throw new Error('Missing Base client');
         }
-        await publicClient.waitForTransactionReceipt({ hash: enterHash });
+        await waitForCallBundle(enterCall.id);
         await refetchHasEntered();
         startNewGame(newDifficulty);
         return;
       }
 
-      const pingHash = await writeContractAsync({
-        address: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-        abi: PAY_TO_PLAY_ABI,
-        functionName: 'ping',
+      const pingCall = await sendCallsAsync({
+        calls: [
+          {
+            to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+            data: encodeFunctionData({
+              abi: PAY_TO_PLAY_ABI,
+              functionName: 'ping',
+            }),
+          },
+        ],
         chainId: BASE_CHAIN_ID,
+        capabilities: builderCapabilities,
       });
       if (!publicClient) {
         throw new Error('Missing Base client');
       }
-      await publicClient.waitForTransactionReceipt({ hash: pingHash });
+      await waitForCallBundle(pingCall.id);
       startNewGame(newDifficulty);
     } catch (err) {
       setNewGameError(err instanceof Error ? err.message : 'Transaction failed or rejected');
@@ -371,7 +422,7 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [state.status, state.guessed, result, isRevealingResult, address, chainId, handlePlay, handleGuess, isUnlocked]);
 
-  const newGameLabel = (newGameLoading || writingTx) ? 'Confirming...' : 'New Game';
+  const newGameLabel = newGameLoading || sendingCalls ? 'Confirming...' : 'New Game';
   const keyboardDisabled = !isUnlocked || state.status !== 'playing' || result !== null || isRevealingResult;
   const locked = !isUnlocked;
 
