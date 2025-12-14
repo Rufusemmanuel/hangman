@@ -7,7 +7,7 @@ export const BASE_CHAIN = base;
 
 export const config = createConfig({
   chains: [BASE_CHAIN],
-  connectors: [miniAppConnector(), injected({ chains: [BASE_CHAIN] })],
+  connectors: [miniAppConnector(), injected()],
   transports: {
     [BASE_CHAIN.id]: http(),
   },
