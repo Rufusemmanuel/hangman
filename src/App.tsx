@@ -5,6 +5,7 @@ import {
   usePublicClient,
   useReadContract,
   useSwitchChain,
+  useWalletClient,
 } from 'wagmi';
 import { useSendCalls } from 'wagmi/experimental';
 import { encodeFunctionData } from 'viem';
@@ -128,6 +129,7 @@ function App() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const publicClient = usePublicClient({ chainId: BASE_CHAIN_ID });
+  const { data: walletClient } = useWalletClient({ chainId: BASE_CHAIN_ID });
   const { data: hasEnteredData, refetch: refetchHasEntered, isFetching: checkingEntered } = useReadContract({
     address: PAY_TO_PLAY_ADDRESS as `0x${string}`,
     abi: PAY_TO_PLAY_ABI,
@@ -160,6 +162,7 @@ function App() {
   const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
   const builderDataSuffixHex = useMemo(() => getBuilderDataSuffixHex(), []);
   const [dataSuffixSupported, setDataSuffixSupported] = useState(false);
+  const [sendCallsSupported, setSendCallsSupported] = useState(true);
 
   useEffect(() => {
     // Signal readiness to the Farcaster Mini App host so the splash can dismiss.
@@ -172,6 +175,52 @@ function App() {
       const supported = await walletSupportsDataSuffix(connector, BASE_CHAIN_ID);
       if (!cancelled) {
         setDataSuffixSupported(supported);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [connector]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!connector?.getProvider) {
+          if (!cancelled) setSendCallsSupported(false);
+          return;
+        }
+        const provider = (await connector.getProvider()) as { request?: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
+        if (!provider?.request) {
+          if (!cancelled) setSendCallsSupported(false);
+          return;
+        }
+        const chainHex = `0x${BASE_CHAIN_ID.toString(16)}`;
+        const withParams = (await provider
+          .request({
+            method: 'wallet_getCapabilities',
+            params: [{ chainId: chainHex }],
+          })
+          .catch(() => undefined)) as any;
+        const withoutParams = withParams
+          ? undefined
+          : ((await provider
+              .request({
+                method: 'wallet_getCapabilities',
+              })
+              .catch(() => undefined)) as any);
+        const capabilities = withParams?.capabilities ?? withParams ?? withoutParams?.capabilities ?? withoutParams;
+        const chainCaps = capabilities?.[chainHex] ?? capabilities?.['0x2105'] ?? capabilities;
+        const sendCallsCap = chainCaps?.sendCalls ?? chainCaps?.wallet_sendCalls;
+        const supported =
+          sendCallsCap === true ||
+          sendCallsCap?.supported === true ||
+          sendCallsCap?.native === true;
+        if (!cancelled) {
+          setSendCallsSupported(Boolean(supported));
+        }
+      } catch {
+        if (!cancelled) setSendCallsSupported(false);
       }
     })();
     return () => {
@@ -262,24 +311,41 @@ function App() {
           ? enterData
           : appendDataSuffix(enterData, builderDataSuffixHex);
         console.log({ supportsSuffix: dataSuffixSupported, suffixHex: builderDataSuffixHex });
-        const enterCall = await sendCallsAsync({
-          calls: [
-            {
-              to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-              data: enterCallData,
-              value: entryFeeWei,
-            },
-          ],
-          chainId: BASE_CHAIN_ID,
-          account: address,
-          capabilities: dataSuffixSupported
-            ? { dataSuffix: { value: builderDataSuffixHex } }
-            : undefined,
-        });
-        if (!publicClient) {
-          throw new Error('Missing Base client');
+        if (sendCallsSupported) {
+          const enterCall = await sendCallsAsync({
+            calls: [
+              {
+                to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+                data: enterCallData,
+                value: entryFeeWei,
+              },
+            ],
+            chainId: BASE_CHAIN_ID,
+            account: address,
+            capabilities: dataSuffixSupported
+              ? { dataSuffix: { value: builderDataSuffixHex } }
+              : undefined,
+          });
+          if (!publicClient) {
+            throw new Error('Missing Base client');
+          }
+          await waitForCallBundle(enterCall.id);
+        } else {
+          if (!walletClient) {
+            throw new Error('Wallet not ready');
+          }
+          const fallbackData = appendDataSuffix(enterData, builderDataSuffixHex);
+          const txHash = await walletClient.sendTransaction({
+            to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+            data: fallbackData,
+            value: entryFeeWei,
+            account: address as `0x${string}`,
+          });
+          if (!publicClient) {
+            throw new Error('Missing Base client');
+          }
+          await publicClient.waitForTransactionReceipt({ hash: txHash });
         }
-        await waitForCallBundle(enterCall.id);
         await refetchHasEntered();
         startNewGame(newDifficulty);
         return;
@@ -291,23 +357,39 @@ function App() {
       });
       const pingCallData = dataSuffixSupported ? pingData : appendDataSuffix(pingData, builderDataSuffixHex);
       console.log({ supportsSuffix: dataSuffixSupported, suffixHex: builderDataSuffixHex });
-      const pingCall = await sendCallsAsync({
-        calls: [
-          {
-            to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-            data: pingCallData,
-          },
-        ],
-        chainId: BASE_CHAIN_ID,
-        account: address,
-        capabilities: dataSuffixSupported
-          ? { dataSuffix: { value: builderDataSuffixHex } }
-          : undefined,
-      });
-      if (!publicClient) {
-        throw new Error('Missing Base client');
+      if (sendCallsSupported) {
+        const pingCall = await sendCallsAsync({
+          calls: [
+            {
+              to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+              data: pingCallData,
+            },
+          ],
+          chainId: BASE_CHAIN_ID,
+          account: address,
+          capabilities: dataSuffixSupported
+            ? { dataSuffix: { value: builderDataSuffixHex } }
+            : undefined,
+        });
+        if (!publicClient) {
+          throw new Error('Missing Base client');
+        }
+        await waitForCallBundle(pingCall.id);
+      } else {
+        if (!walletClient) {
+          throw new Error('Wallet not ready');
+        }
+        const fallbackData = appendDataSuffix(pingData, builderDataSuffixHex);
+        const txHash = await walletClient.sendTransaction({
+          to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+          data: fallbackData,
+          account: address as `0x${string}`,
+        });
+        if (!publicClient) {
+          throw new Error('Missing Base client');
+        }
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
       }
-      await waitForCallBundle(pingCall.id);
       startNewGame(newDifficulty);
     } catch (err) {
       setNewGameError(err instanceof Error ? err.message : 'Transaction failed or rejected');
