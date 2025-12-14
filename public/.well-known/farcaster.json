@@ -9,7 +9,7 @@
     "name": "Hangman",
     "iconUrl": "https://hangman-two-eta.vercel.app/hangmanlogo.gif",
     "homeUrl": "https://hangman-two-eta.vercel.app/",
-    "webhookUrl": null,
+    "webhookUrl": "https://hangman-two-eta.vercel.app/api/webhook",
     "splashImageUrl": "https://hangman-two-eta.vercel.app/hangmansplash.png",
     "splashBackgroundColor": "#0b031a",
     "subtitle": "Neon glassy hangman on Base.",
