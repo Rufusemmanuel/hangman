@@ -451,7 +451,7 @@ function App() {
           lastAward={lastAward}
           onNewGame={() => handlePlay()}
           newGameLabel={newGameLabel}
-          newGameDisabled={newGameLoading || checkingEntered || writingTx}
+          newGameDisabled={newGameLoading || checkingEntered || sendingCalls}
           newGameError={newGameError}
           soundEnabled={soundEnabled}
           onToggleSound={() => setSoundEnabled((v) => !v)}
@@ -465,7 +465,7 @@ function App() {
           <Header
             onNewGame={() => handlePlay()}
             newGameLabel={newGameLabel}
-            newGameDisabled={newGameLoading || checkingEntered || writingTx}
+            newGameDisabled={newGameLoading || checkingEntered || sendingCalls}
             newGameError={newGameError}
             lives={state.lives}
             maxLives={maxLives}
