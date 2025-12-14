@@ -5,10 +5,10 @@ import {
   usePublicClient,
   useReadContract,
   useSwitchChain,
-  useWalletClient,
 } from 'wagmi';
 import { useSendCalls } from 'wagmi/experimental';
-import { encodeFunctionData } from 'viem';
+import { createWalletClient, custom, encodeFunctionData } from 'viem';
+import { base as viemBase } from 'viem/chains';
 import { waitForCallsStatus } from '@wagmi/core';
 import { sdk } from '@farcaster/miniapp-sdk';
 import GameBoard from './components/GameBoard';
@@ -129,7 +129,6 @@ function App() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const publicClient = usePublicClient({ chainId: BASE_CHAIN_ID });
-  const { data: walletClient } = useWalletClient({ chainId: BASE_CHAIN_ID });
   const { data: hasEnteredData, refetch: refetchHasEntered, isFetching: checkingEntered } = useReadContract({
     address: PAY_TO_PLAY_ADDRESS as `0x${string}`,
     abi: PAY_TO_PLAY_ABI,
@@ -331,11 +330,16 @@ function App() {
           }
           await waitForCallBundle(enterCall.id);
         } else {
-          if (!walletClient) {
+          if (!connector?.getProvider) {
             throw new Error('Wallet not ready');
           }
+          const provider = await connector.getProvider();
+          const client = createWalletClient({
+            chain: viemBase,
+            transport: custom(provider),
+          });
           const fallbackData = appendDataSuffix(enterData, builderDataSuffixHex);
-          const txHash = await walletClient.sendTransaction({
+          const txHash = await client.sendTransaction({
             to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
             data: fallbackData,
             value: entryFeeWei,
@@ -376,11 +380,16 @@ function App() {
         }
         await waitForCallBundle(pingCall.id);
       } else {
-        if (!walletClient) {
+        if (!connector?.getProvider) {
           throw new Error('Wallet not ready');
         }
+        const provider = await connector.getProvider();
+        const client = createWalletClient({
+          chain: viemBase,
+          transport: custom(provider),
+        });
         const fallbackData = appendDataSuffix(pingData, builderDataSuffixHex);
-        const txHash = await walletClient.sendTransaction({
+        const txHash = await client.sendTransaction({
           to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
           data: fallbackData,
           account: address as `0x${string}`,
