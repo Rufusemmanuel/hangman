@@ -3,7 +3,6 @@ import {
   useAccount,
   useChainId,
   usePublicClient,
-  useReadContract,
   useSwitchChain,
 } from 'wagmi';
 import { useSendCalls } from 'wagmi/experimental';
@@ -18,7 +17,7 @@ import Keyboard from './components/Keyboard';
 import ResultModal from './components/ResultModal';
 import Settings from './components/Settings';
 import MobileGameLayout from './components/MobileGameLayout';
-import { PAY_TO_PLAY_ABI, PAY_TO_PLAY_ADDRESS } from './config/contract';
+import { DIFFICULTY_CONTRACTS, DIFFICULTY_TX_VALUE } from './config/difficultyContracts';
 import { Difficulty, WordEntry, wordBank } from './data/words';
 import { useSound } from './hooks/useSound';
 import WalletPanel from './wallet/WalletPanel';
@@ -133,30 +132,8 @@ function App() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const publicClient = usePublicClient({ chainId: BASE_CHAIN_ID });
-  const { data: hasEnteredData, refetch: refetchHasEntered, isFetching: checkingEntered } = useReadContract({
-    address: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-    abi: PAY_TO_PLAY_ABI,
-    functionName: 'hasEntered',
-    args: [address ?? '0x0000000000000000000000000000000000000000'],
-    chainId: BASE_CHAIN_ID,
-    query: { enabled: Boolean(address) },
-  });
-  const { data: entryFeeWei } = useReadContract({
-    address: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-    abi: [
-      ...PAY_TO_PLAY_ABI,
-      {
-        type: 'function',
-        name: 'entryFeeWei',
-        stateMutability: 'view',
-        inputs: [],
-        outputs: [{ name: '', type: 'uint256' }],
-      },
-    ] as const,
-    functionName: 'entryFeeWei',
-    chainId: BASE_CHAIN_ID,
-  });
-  const isUnlocked = Boolean(hasEnteredData);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const checkingEntered = false;
   const { sendCallsAsync, isPending: sendingCalls } = useSendCalls();
   const [newGameLoading, setNewGameLoading] = useState(false);
   const [newGameError, setNewGameError] = useState<string | null>(null);
@@ -171,6 +148,12 @@ function App() {
     // Signal readiness to the Farcaster Mini App host so the splash can dismiss.
     sdk.actions?.ready().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!isConnected) {
+      setIsUnlocked(false);
+    }
+  }, [isConnected]);
 
   useEffect(() => {
     let cancelled = false;
@@ -290,87 +273,23 @@ function App() {
       }
     }
     try {
-      if (entryFeeWei === undefined) {
-        setNewGameError('Entry fee not loaded yet');
-        setNewGameLoading(false);
-        return;
-      }
-      let hasEntered = Boolean(hasEnteredData);
-      try {
-        const refreshed = await refetchHasEntered();
-        if (refreshed?.data !== undefined) {
-          hasEntered = Boolean(refreshed.data);
-        }
-      } catch {
-        // ignore read errors, fall back to cached
-      }
-
-      if (!hasEntered) {
-        const enterData = encodeFunctionData({
-          abi: PAY_TO_PLAY_ABI,
-          functionName: 'enter',
-        });
-        const enterCallData = dataSuffixSupported
-          ? enterData
-          : appendDataSuffix(enterData, builderDataSuffixHex);
-        console.log({ supportsSuffix: dataSuffixSupported, suffixHex: builderDataSuffixHex });
-        if (sendCallsSupported) {
-          const enterCall = await sendCallsAsync({
-            calls: [
-              {
-                to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-                data: enterCallData,
-                value: entryFeeWei,
-              },
-            ],
-            chainId: BASE_CHAIN_ID,
-            account: address,
-            capabilities: dataSuffixSupported
-              ? { dataSuffix: { value: builderDataSuffixHex } }
-              : undefined,
-          });
-          if (!publicClient) {
-            throw new Error('Missing Base client');
-          }
-          await waitForCallBundle(enterCall.id);
-        } else {
-          if (!connector?.getProvider) {
-            throw new Error('Wallet not ready');
-          }
-          const provider = (await connector.getProvider()) as Eip1193Provider;
-          const client = createWalletClient({
-            chain: viemBase,
-            transport: custom(provider),
-          });
-          const fallbackData = appendDataSuffix(enterData, builderDataSuffixHex);
-          const txHash = await client.sendTransaction({
-            to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-            data: fallbackData,
-            value: entryFeeWei,
-            account: address as `0x${string}`,
-          });
-          if (!publicClient) {
-            throw new Error('Missing Base client');
-          }
-          await publicClient.waitForTransactionReceipt({ hash: txHash });
-        }
-        await refetchHasEntered();
-        startNewGame(newDifficulty);
-        return;
-      }
-
-      const pingData = encodeFunctionData({
-        abi: PAY_TO_PLAY_ABI,
-        functionName: 'ping',
+      const chosenDifficulty = newDifficulty ?? state.difficulty;
+      const contract = DIFFICULTY_CONTRACTS[chosenDifficulty];
+      const playData = encodeFunctionData({
+        abi: contract.abi,
+        functionName: chosenDifficulty,
       });
-      const pingCallData = dataSuffixSupported ? pingData : appendDataSuffix(pingData, builderDataSuffixHex);
+      const playCallData = dataSuffixSupported
+        ? playData
+        : appendDataSuffix(playData, builderDataSuffixHex);
       console.log({ supportsSuffix: dataSuffixSupported, suffixHex: builderDataSuffixHex });
       if (sendCallsSupported) {
-        const pingCall = await sendCallsAsync({
+        const playCall = await sendCallsAsync({
           calls: [
             {
-              to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
-              data: pingCallData,
+              to: contract.address,
+              data: playCallData,
+              value: DIFFICULTY_TX_VALUE,
             },
           ],
           chainId: BASE_CHAIN_ID,
@@ -382,7 +301,7 @@ function App() {
         if (!publicClient) {
           throw new Error('Missing Base client');
         }
-        await waitForCallBundle(pingCall.id);
+        await waitForCallBundle(playCall.id);
       } else {
         if (!connector?.getProvider) {
           throw new Error('Wallet not ready');
@@ -392,10 +311,11 @@ function App() {
           chain: viemBase,
           transport: custom(provider),
         });
-        const fallbackData = appendDataSuffix(pingData, builderDataSuffixHex);
+        const fallbackData = appendDataSuffix(playData, builderDataSuffixHex);
         const txHash = await client.sendTransaction({
-          to: PAY_TO_PLAY_ADDRESS as `0x${string}`,
+          to: contract.address,
           data: fallbackData,
+          value: DIFFICULTY_TX_VALUE,
           account: address as `0x${string}`,
         });
         if (!publicClient) {
@@ -403,6 +323,7 @@ function App() {
         }
         await publicClient.waitForTransactionReceipt({ hash: txHash });
       }
+      setIsUnlocked(true);
       startNewGame(newDifficulty);
     } catch (err) {
       setNewGameError(err instanceof Error ? err.message : 'Transaction failed or rejected');
