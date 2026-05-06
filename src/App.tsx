@@ -5,8 +5,7 @@ import {
   usePublicClient,
   useSwitchChain,
 } from 'wagmi';
-import { useSendCalls } from 'wagmi/experimental';
-import { createWalletClient, custom, encodeFunctionData } from 'viem';
+import { custom, encodeFunctionData } from 'viem';
 import { base as viemBase } from 'viem/chains';
 import { waitForCallsStatus } from '@wagmi/core';
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -19,11 +18,11 @@ import Settings from './components/Settings';
 import MobileGameLayout from './components/MobileGameLayout';
 import { DIFFICULTY_CONTRACTS, DIFFICULTY_TX_VALUE } from './config/difficultyContracts';
 import { Difficulty, WordEntry, wordBank } from './data/words';
+import { useBuilderSendCalls } from './hooks/useBuilderSendCalls';
 import { useSound } from './hooks/useSound';
 import WalletPanel from './wallet/WalletPanel';
 import {
-  appendDataSuffix,
-  getBuilderDataSuffixHex,
+  createBuilderWalletClient,
   walletSupportsDataSuffix,
 } from './utils/builderAttribution';
 import { BASE_CHAIN, config } from './wagmi';
@@ -134,15 +133,14 @@ function App() {
   const publicClient = usePublicClient({ chainId: BASE_CHAIN_ID });
   const [isUnlocked, setIsUnlocked] = useState(false);
   const checkingEntered = false;
-  const { sendCallsAsync, isPending: sendingCalls } = useSendCalls();
   const [newGameLoading, setNewGameLoading] = useState(false);
   const [newGameError, setNewGameError] = useState<string | null>(null);
   const [clearingError, setClearingError] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
-  const builderDataSuffixHex = useMemo(() => getBuilderDataSuffixHex(), []);
   const [dataSuffixSupported, setDataSuffixSupported] = useState(false);
   const [sendCallsSupported, setSendCallsSupported] = useState(true);
+  const { sendCallsAsync, isPending: sendingCalls } = useBuilderSendCalls(dataSuffixSupported);
 
   useEffect(() => {
     // Signal readiness to the Farcaster Mini App host so the splash can dismiss.
@@ -279,24 +277,17 @@ function App() {
         abi: contract.abi,
         functionName: chosenDifficulty,
       });
-      const playCallData = dataSuffixSupported
-        ? playData
-        : appendDataSuffix(playData, builderDataSuffixHex);
-      console.log({ supportsSuffix: dataSuffixSupported, suffixHex: builderDataSuffixHex });
       if (sendCallsSupported) {
         const playCall = await sendCallsAsync({
           calls: [
             {
               to: contract.address,
-              data: playCallData,
+              data: playData,
               value: DIFFICULTY_TX_VALUE,
             },
           ],
           chainId: BASE_CHAIN_ID,
           account: address,
-          capabilities: dataSuffixSupported
-            ? { dataSuffix: { value: builderDataSuffixHex } }
-            : undefined,
         });
         if (!publicClient) {
           throw new Error('Missing Base client');
@@ -307,14 +298,13 @@ function App() {
           throw new Error('Wallet not ready');
         }
         const provider = (await connector.getProvider()) as Eip1193Provider;
-        const client = createWalletClient({
+        const client = createBuilderWalletClient({
           chain: viemBase,
           transport: custom(provider),
         });
-        const fallbackData = appendDataSuffix(playData, builderDataSuffixHex);
         const txHash = await client.sendTransaction({
           to: contract.address,
-          data: fallbackData,
+          data: playData,
           value: DIFFICULTY_TX_VALUE,
           account: address as `0x${string}`,
         });
